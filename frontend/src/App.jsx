@@ -1,0 +1,1398 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { io } from "socket.io-client";
+import mafiaHood from "./assets/mafia-hood.png";
+import bloodMoon from "./assets/blood-moon.png";
+  import PhaseSplash from "./PhaseSplash";
+
+const socket = io();
+
+const css = `
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;500;600&family=Permanent+Marker&display=swap');
+
+:root{
+  --bg:#07080c; --panel:rgba(18,19,24,.72); --line:rgba(255,255,255,.09);
+  --red:#ff2a36; --red-deep:#b3121c; --text:#eceef2; --mute:#8b8f9a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg)}
+body{display:block!important;place-items:unset!important;min-width:0!important}
+#root{max-width:none!important;width:100%!important;margin:0!important;padding:0!important;text-align:left!important}
+.mf{position:relative;min-height:100vh;display:grid;place-items:center;overflow:hidden;
+  font-family:'Inter',system-ui,sans-serif;color:var(--text);padding:24px}
+
+/* ---------- scene ---------- */
+.mf-sky{position:absolute;inset:0;background:
+  radial-gradient(120% 60% at 50% 110%,#5a0a12 0%,transparent 60%),
+  radial-gradient(60% 50% at 20% 0%,#1a1f33 0%,transparent 70%),
+  linear-gradient(#0a0c14,#07080c)}
+.mf-moon{position:absolute;top:-6%;right:2%;width:min(34vw,460px);height:auto;
+  mix-blend-mode:screen;pointer-events:none;
+  -webkit-mask-image:radial-gradient(closest-side,#000 55%,transparent 100%);
+  mask-image:radial-gradient(closest-side,#000 55%,transparent 100%);
+  filter:drop-shadow(0 0 40px rgba(255,42,54,.35));
+  animation:moon 9s ease-in-out infinite}
+@keyframes moon{50%{transform:translateY(-8px);filter:drop-shadow(0 0 60px rgba(255,42,54,.55))}}
+.mf-cloud{position:absolute;left:-30%;width:160%;height:180px;filter:blur(38px);opacity:.5;
+  background:radial-gradient(ellipse at center,#2a2f47 0,transparent 65%);animation:drift 40s linear infinite}
+.mf-cloud.c2{top:26%;opacity:.35;animation-duration:64s;animation-direction:reverse}
+@keyframes drift{to{transform:translateX(18%)}}
+.mf-city{position:absolute;bottom:0;left:0;right:0;height:38%;
+  background:linear-gradient(transparent,rgba(255,30,45,.18));}
+.mf-city svg{position:absolute;bottom:0;width:100%;height:100%}
+.mf-win{animation:flick 3s steps(1) infinite}
+@keyframes flick{0%{opacity:1}42%{opacity:.35}46%{opacity:1}80%{opacity:.6}}
+.mf-ember{position:absolute;bottom:-10px;width:var(--s);height:var(--s);border-radius:50%;
+  background:var(--red);box-shadow:0 0 8px 2px rgba(255,42,54,.7);opacity:0;
+  left:var(--x);animation:rise var(--d) linear var(--dl) infinite}
+@keyframes rise{0%{opacity:0;transform:translate(0,0)}10%{opacity:.9}
+  100%{opacity:0;transform:translate(var(--dx),-88vh)}}
+.mf-vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,.75))}
+
+.mf-slogan{position:absolute;top:7%;right:6%;text-align:right;font-family:'Permanent Marker',cursive;
+  font-size:clamp(28px,4.4vw,58px);line-height:1;color:rgba(170,180,205,.55);transform:rotate(-6deg);
+  text-shadow:0 0 30px rgba(120,140,200,.25);animation:slogan 1.4s ease-out both .3s}
+@keyframes slogan{from{opacity:0;letter-spacing:.3em;filter:blur(6px)}}
+.mf-slogan.r{left:auto;right:6%;top:auto;bottom:8%;font-size:clamp(20px,2.4vw,32px);transform:rotate(-5deg)}
+
+/* ---------- devil mafia ---------- */
+.mf-glow{position:absolute;left:-6%;bottom:-14%;width:min(58vw,96vh);aspect-ratio:1;border-radius:50%;z-index:0;
+  background:radial-gradient(circle,rgba(255,30,45,.4),transparent 65%);animation:aura 4s ease-in-out infinite}
+.mf-devil{position:absolute;left:1%;bottom:0;width:min(46vw,78vh,800px);height:auto;aspect-ratio:1;object-fit:cover;
+  mix-blend-mode:screen;-webkit-mask-image:radial-gradient(closest-side,#000 60%,transparent 100%);
+  mask-image:radial-gradient(closest-side,#000 60%,transparent 100%);z-index:1;
+  filter:drop-shadow(0 0 40px rgba(255,42,54,.25));animation:emerge 1.8s ease-out both .2s}
+@keyframes emerge{from{opacity:0;transform:translateY(70px)}}
+.mf-aura{animation:aura 4s ease-in-out infinite}
+@keyframes aura{50%{opacity:.55}}
+.mf-eye{animation:eye 5s infinite}
+@keyframes eye{0%,90%,100%{opacity:1}92%{opacity:.1}94%{opacity:1}}
+.mf-ember2{animation:ember2 1.8s ease-in-out infinite}
+@keyframes ember2{50%{opacity:.45}}
+.mf-smoke{opacity:0;animation:smoke 5s ease-out infinite}
+.mf-smoke:nth-of-type(2){animation-delay:1.6s}.mf-smoke:nth-of-type(3){animation-delay:3.2s}
+@keyframes smoke{0%{opacity:0;transform:translate(0,0) scale(.4)}20%{opacity:.5}
+  100%{opacity:0;transform:translate(34px,-150px) scale(3.2)}}
+.mf-smoke2{opacity:0;transform-box:fill-box;transform-origin:center;animation:smoke2 5s ease-out infinite}
+@keyframes smoke2{0%{opacity:0;transform:translate(0,0) scale(.5)}20%{opacity:.55}
+  100%{opacity:0;transform:translate(10px,-42px) scale(3.4)}}
+.av{display:block}
+.mf-q{animation:q 3.2s ease-in-out infinite;filter:drop-shadow(0 0 10px rgba(255,255,255,.6))}
+@keyframes q{50%{opacity:.6}}
+.mf-rim{animation:rim 4s ease-in-out infinite}
+@keyframes rim{50%{stroke:#b3121c}}
+.av-bg{fill:color-mix(in srgb,var(--rc,#ff2a36) 26%,#0d0e12)}
+.av-ring{fill:none;stroke:var(--rc,#ff2a36);stroke-width:2.2}
+@media (max-width:900px){.mf-devil{left:-12%;opacity:.4}}
+
+/* ---------- card ---------- */
+.mf-card{position:relative;z-index:2;width:min(420px,100%);padding:38px 36px 30px;border-radius:22px;
+  background:var(--panel);backdrop-filter:blur(18px) saturate(1.2);border:1px solid var(--line);
+  box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(255,42,54,.06),inset 0 1px 0 rgba(255,255,255,.06);
+  animation:card .9s cubic-bezier(.2,.9,.25,1) both;
+  display:flex;flex-direction:column;max-height:calc(100vh - 150px)}
+.mf-card>*{flex-shrink:0}
+@keyframes card{from{opacity:0;transform:translateY(40px) scale(.96)}}
+.mf-card::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;
+  background:conic-gradient(from var(--a,0deg),transparent 0 70%,rgba(255,42,54,.85) 85%,transparent);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;animation:spin 6s linear infinite}
+@property --a{syntax:'<angle>';initial-value:0deg;inherits:false}
+@keyframes spin{to{--a:360deg}}
+.mf-leave{align-self:center;margin-top:12px;background:none;border:0;color:var(--mute);font:inherit;
+  font-size:12.5px;cursor:pointer;text-decoration:underline}
+.mf-leave:hover{color:#ff6b73}
+.mf-logo{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:22px}
+.mf-logo svg{width:64px;filter:drop-shadow(0 0 14px rgba(255,42,54,.55));animation:pulse 3s ease-in-out infinite}
+@keyframes pulse{50%{filter:drop-shadow(0 0 26px rgba(255,42,54,.95))}}
+.mf-brand{font-family:'Oswald',sans-serif;font-weight:700;font-size:30px;letter-spacing:.04em}
+.mf-brand b{color:var(--red)}
+.mf-tag{font-size:10px;letter-spacing:.42em;color:var(--mute)}
+.mf h2{font-family:'Oswald',sans-serif;font-weight:500;text-align:center;font-size:22px;margin:0 0 4px}
+.mf-sub{text-align:center;color:var(--mute);font-size:13px;margin:0 0 22px}
+.mf-team{color:#ff6b73;font-weight:600;font-size:13px}
+.mf-field{position:relative;margin-bottom:14px}
+.mf-field svg{position:absolute;left:14px;top:50%;translate:0 -50%;width:18px;color:var(--mute);transition:color .2s}
+.mf-input{width:100%;height:48px;padding:0 14px 0 44px;border-radius:12px;border:1px solid var(--line);
+  background:rgba(255,255,255,.04);color:var(--text);font:inherit;font-size:14px;outline:none;
+  transition:border-color .2s,box-shadow .2s,background .2s}
+.mf-input::placeholder{color:#6d717c}
+.mf-input:focus{border-color:rgba(255,42,54,.7);background:rgba(255,42,54,.05);box-shadow:0 0 0 4px rgba(255,42,54,.12)}
+.mf-field:focus-within svg{color:var(--red)}
+.mf-shake{animation:shake .4s}
+@keyframes shake{25%{translate:-7px}75%{translate:7px}}
+.mf-err{color:#ff6b73;font-size:12.5px;margin:-2px 0 12px;animation:fade .3s both}
+@keyframes fade{from{opacity:0;transform:translateY(-4px)}}
+
+.mf-btn{position:relative;width:100%;height:50px;border:0;border-radius:12px;cursor:pointer;overflow:hidden;
+  font-family:'Oswald',sans-serif;font-weight:500;font-size:16px;letter-spacing:.06em;color:#fff;
+  background:linear-gradient(180deg,#ff4550,var(--red-deep));
+  box-shadow:0 0 0 1px rgba(255,90,100,.5),0 8px 30px rgba(255,42,54,.35),inset 0 1px 0 rgba(255,255,255,.35);
+  animation:glow 2.6s ease-in-out infinite;transition:transform .15s}
+@keyframes glow{50%{box-shadow:0 0 0 1px rgba(255,90,100,.7),0 8px 46px rgba(255,42,54,.65),inset 0 1px 0 rgba(255,255,255,.35)}}
+.mf-btn::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-20deg);
+  animation:sheen 3.4s ease-in-out infinite}
+@keyframes sheen{60%,100%{left:130%}}
+.mf-btn:hover{transform:translateY(-2px)}
+.mf-btn:active{transform:scale(.98)}
+.mf-btn:disabled{opacity:.7;cursor:wait}
+.mf-btn.ghost{background:rgba(255,255,255,.05);box-shadow:0 0 0 1px var(--line);animation:none;margin-top:10px}
+.mf-btn.ghost::after{display:none}
+
+.mf-note{margin:18px 0 0;text-align:center;color:var(--mute);font-size:12.5px}
+
+/* ---------- create / join switch ---------- */
+.mf-tabs{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:4px;margin-bottom:22px;
+  border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.mf-tabs i{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:9px;
+  background:linear-gradient(180deg,#ff4550,var(--red-deep));box-shadow:0 0 22px rgba(255,42,54,.45);
+  transition:transform .4s cubic-bezier(.3,1.3,.5,1)}
+.mf-tabs[data-mode="join"] i{transform:translateX(100%)}
+.mf-tabs button{position:relative;z-index:1;height:38px;border:0;background:none;cursor:pointer;
+  font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:.06em;color:var(--mute);transition:color .25s}
+.mf-tabs button[aria-selected="true"]{color:#fff}
+.mf-swap{animation:swap .45s cubic-bezier(.2,.9,.3,1) both}
+@keyframes swap{from{opacity:0;transform:translateX(var(--dir,18px))}}
+.mf-label{font-size:12.5px;color:var(--mute);margin:0 0 10px;text-align:center}
+.mf-codeinput{display:flex;justify-content:center;gap:8px;margin-bottom:16px}
+.mf-codeinput input{width:100%;max-width:52px;height:62px;text-align:center;text-transform:uppercase;
+  font-family:'Oswald',sans-serif;font-size:27px;font-weight:700;color:#fff;border-radius:10px;
+  background:linear-gradient(#22242c,#14151a);border:1px solid var(--line);outline:none;caret-color:var(--red);
+  transition:transform .2s,border-color .2s,box-shadow .2s}
+.mf-codeinput input::placeholder{color:#3b3e48}
+.mf-codeinput input:not(:placeholder-shown){border-color:rgba(255,42,54,.5);box-shadow:0 0 16px rgba(255,42,54,.2)}
+.mf-codeinput input:focus{transform:translateY(-4px);border-color:rgba(255,42,54,.9);
+  box-shadow:0 0 0 4px rgba(255,42,54,.14),0 0 24px rgba(255,42,54,.4)}
+
+/* ---------- lobby ---------- */
+.mf-code{display:flex;justify-content:center;gap:8px;margin:6px 0 8px;perspective:600px}
+.mf-code span{width:44px;height:56px;display:grid;place-items:center;border-radius:10px;
+  font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;color:#fff;
+  background:linear-gradient(#22242c,#14151a);border:1px solid rgba(255,42,54,.45);
+  box-shadow:0 0 18px rgba(255,42,54,.25);animation:flip .7s cubic-bezier(.2,.9,.3,1) both;
+  animation-delay:calc(var(--i)*90ms + 200ms)}
+@keyframes flip{from{opacity:0;transform:rotateX(-90deg)}}
+.mf-card>.mf-players{flex-shrink:1}
+.mf-players{list-style:none;margin:14px 0 4px;padding:0 4px 0 0;display:grid;gap:6px;align-content:start;
+  min-height:70px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#6b121a transparent}
+.mf-players::-webkit-scrollbar{width:6px}
+.mf-players::-webkit-scrollbar-thumb{background:#6b121a;border-radius:6px}
+.mf-player{display:flex;align-items:center;gap:10px;padding:7px 12px;font-size:14px;border-radius:12px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line);
+  animation:join .5s cubic-bezier(.2,.9,.3,1) both;animation-delay:calc(var(--i)*120ms + 500ms)}
+@keyframes join{from{opacity:0;transform:translateX(-24px)}}
+.mf-avatar{width:28px;height:28px;font-size:13px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;font-weight:600;
+  background:radial-gradient(circle at 30% 30%,#ff4550,#5a0a12);box-shadow:0 0 12px rgba(255,42,54,.5)}
+.mf-host{margin-left:auto;font-size:11px;color:var(--red);border:1px solid rgba(255,42,54,.5);
+  padding:3px 9px;border-radius:99px}
+.mf-wait{display:flex;justify-content:center;gap:5px;margin-top:14px}
+.mf-wait i{width:6px;height:6px;border-radius:50%;background:var(--red);animation:dot 1.2s infinite}
+.mf-wait i:nth-child(2){animation-delay:.2s}.mf-wait i:nth-child(3){animation-delay:.4s}
+@keyframes dot{0%,80%,100%{opacity:.25;transform:scale(.7)}40%{opacity:1;transform:scale(1.2)}}
+
+/* ---------- character picker ---------- */
+.mf-gender{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}
+.mf-gender button{height:40px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);
+  color:var(--mute);font:inherit;font-size:13.5px;cursor:pointer;transition:all .2s}
+.mf-gender button:hover{color:var(--text)}
+.mf-gender button[aria-pressed="true"]{color:#fff;border-color:rgba(255,42,54,.7);background:rgba(255,42,54,.14);
+  box-shadow:0 0 18px rgba(255,42,54,.25)}
+.av-photo{border-radius:50%;object-fit:cover;border:2px solid var(--rc,#ff2a36)}
+
+/* ---------- role reveal ---------- */
+.mf-role{perspective:900px;height:330px;margin:8px 0 14px;cursor:pointer;outline:none}
+.mf-role:focus-visible .mf-face{outline:2px solid #fff;outline-offset:3px}
+.mf-role-in{position:relative;height:100%;transform-style:preserve-3d;transition:transform .8s cubic-bezier(.3,1.2,.4,1)}
+.mf-role.open .mf-role-in{transform:rotateY(180deg)}
+.mf-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:16px;
+  display:grid;align-content:center;justify-items:center;gap:10px;padding:18px;text-align:center}
+.mf-front{background:linear-gradient(160deg,#22242c,#0d0e12);border:1px solid rgba(255,42,54,.5);
+  box-shadow:0 0 30px rgba(255,42,54,.2);color:var(--mute);font-size:13px}
+.mf-front .mf-hood{width:140px;height:140px;border-radius:50%;object-fit:cover;border:2px solid var(--red);
+  box-shadow:0 0 30px rgba(255,42,54,.5)}
+.mf-back{transform:rotateY(180deg);border:1px solid var(--rc);color:var(--mute);font-size:13px;line-height:1.5;
+  background:radial-gradient(circle at 50% 0%,color-mix(in srgb,var(--rc) 32%,transparent),#0d0e12 72%);
+  box-shadow:0 0 34px color-mix(in srgb,var(--rc) 35%,transparent)}
+.mf-back .av{width:140px;height:140px;filter:drop-shadow(0 0 16px color-mix(in srgb,var(--rc) 55%,transparent))}
+.mf-back strong{font-family:'Oswald',sans-serif;font-size:36px;letter-spacing:.05em;color:var(--rc);
+  text-shadow:0 0 22px var(--rc)}
+
+/* ---------- night / morning ---------- */
+.mf-game-head{display:grid;justify-items:center;gap:4px;margin-bottom:8px}
+.mf-game-head .av{width:84px;height:84px;filter:drop-shadow(0 0 14px color-mix(in srgb,var(--rc) 50%,transparent))}
+.mf-game-head h2{margin:6px 0 0;color:var(--rc)}
+.mf-game-head .mf-sub{margin:0 0 6px}
+.mf-pick{display:flex;align-items:center;gap:10px;width:100%;padding:7px 12px;border-radius:12px;font:inherit;
+  font-size:14px;color:var(--text);text-align:left;cursor:pointer;background:rgba(255,255,255,.04);
+  border:1px solid var(--line);transition:border-color .2s,background .2s,box-shadow .2s,transform .15s}
+.mf-pick:hover{transform:translateX(3px)}
+.mf-pick.on{border-color:var(--rc);background:color-mix(in srgb,var(--rc) 14%,transparent);
+  box-shadow:0 0 20px color-mix(in srgb,var(--rc) 35%,transparent)}
+.mf-verdict{margin:10px 0 4px;padding:12px 14px;border-radius:12px;text-align:center;font-size:14px;
+  border:1px solid var(--rc);background:color-mix(in srgb,var(--rc) 12%,transparent);animation:fade .5s both}
+.mf-player.dead{opacity:.45}
+.mf-player.dead .mf-avatar{filter:grayscale(1)}
+/* ---------- chat ---------- */
+.mf{transition:padding .35s cubic-bezier(.2,.9,.3,1)}
+@media (min-width:1000px){.mf.chat-open{padding-right:380px}}
+
+.mf-chat-fab{position:fixed;right:0;top:50%;translate:0 -50%;z-index:5;border:0;cursor:pointer;color:#fff;
+  padding:16px 12px 16px 14px;border-radius:14px 0 0 14px;font-family:'Oswald',sans-serif;font-size:15px;
+  letter-spacing:.08em;background:linear-gradient(180deg,#ff4550,var(--red-deep));
+  box-shadow:0 0 24px rgba(255,42,54,.55),inset 0 1px 0 rgba(255,255,255,.35);
+  display:grid;justify-items:center;gap:6px;animation:glow 2.6s ease-in-out infinite}
+.mf-chat-fab span.t{writing-mode:vertical-rl;text-orientation:mixed}
+.mf-badge{min-width:20px;height:20px;padding:0 5px;border-radius:99px;background:#fff;color:var(--red-deep);
+  font:600 12px 'Inter',sans-serif;display:grid;place-items:center}
+
+.mf-chat-panel{position:fixed;top:16px;right:16px;bottom:16px;z-index:6;width:min(340px,calc(100vw - 32px));
+  display:flex;flex-direction:column;border-radius:18px;overflow:hidden;border:1px solid rgba(255,42,54,.45);
+  background:linear-gradient(rgba(8,8,12,.8),rgba(8,8,12,.92)),var(--bg) center/cover no-repeat;
+  box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 30px rgba(255,42,54,.2);
+  translate:120% 0;transition:translate .35s cubic-bezier(.2,.9,.3,1)}
+.mf-chat-panel.open{translate:0 0}
+.mf-chat-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;
+  border-bottom:1px solid var(--line);font-family:'Oswald',sans-serif;font-size:17px;letter-spacing:.06em}
+.mf-chat-head button{width:30px;height:30px;border:0;border-radius:8px;cursor:pointer;color:var(--text);
+  background:rgba(255,255,255,.08);font-size:16px}
+.mf-msgs{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;font-size:13.5px;display:flex;flex-direction:column;
+  gap:8px;scrollbar-width:thin;scrollbar-color:#6b121a transparent}
+.mf-msgs::-webkit-scrollbar{width:6px}
+.mf-msgs::-webkit-scrollbar-thumb{background:#6b121a;border-radius:6px}
+.mf-msg{word-break:break-word;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06);max-width:92%}
+.mf-msg b{display:block;color:var(--red);font-size:12px;font-weight:600;margin-bottom:2px}
+.mf-msg.me{align-self:flex-end;background:rgba(53,212,154,.14)}
+.mf-msg.me b{color:#35d49a}
+.mf-msg-empty{color:var(--mute);text-align:center;margin:auto}
+.mf-chat-foot{padding:10px 12px 12px;border-top:1px solid var(--line)}
+.mf-chatbar{display:flex;gap:8px}
+.mf-chatbar input{flex:1;min-width:0;height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(255,255,255,.06);color:var(--text);font:inherit;font-size:13.5px;outline:none}
+.mf-chatbar input:focus{border-color:rgba(255,42,54,.7);box-shadow:0 0 0 3px rgba(255,42,54,.12)}
+.mf-chatbar button{width:72px;height:40px;border:0;border-radius:10px;cursor:pointer;color:#fff;
+  font-family:'Oswald',sans-serif;letter-spacing:.05em;background:linear-gradient(180deg,#ff4550,var(--red-deep))}
+.mf-chatbar button:disabled{opacity:.6;cursor:not-allowed}
+/* ---------- game over ---------- */
+.mf-over{display:grid;justify-items:center;gap:6px;margin-bottom:6px;text-align:center}
+.mf-over .crest{width:64px;height:64px;display:grid;place-items:center;border-radius:50%;font-size:30px;
+  border:2px solid var(--wc);background:color-mix(in srgb,var(--wc) 16%,#0d0e12);
+  box-shadow:0 0 34px color-mix(in srgb,var(--wc) 55%,transparent);animation:pop .7s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes pop{from{opacity:0;transform:scale(.3)}}
+.mf-over h2{margin:4px 0 0;font-size:26px;color:var(--wc);text-shadow:0 0 24px var(--wc)}
+.mf-over .mf-sub{margin:0}
+.mf-outcome{margin-top:6px;padding:5px 14px;border-radius:99px;font-family:'Oswald',sans-serif;font-size:13px;
+  letter-spacing:.1em;border:1px solid var(--oc);color:var(--oc);background:color-mix(in srgb,var(--oc) 12%,transparent)}
+.mf-role-chip{margin-left:auto;font-size:11px;padding:3px 9px;border-radius:99px;
+  border:1px solid var(--rc);color:var(--rc);background:color-mix(in srgb,var(--rc) 12%,transparent)}
+.mf-reveal-label{margin:12px 0 0;text-align:center;font-size:11px;letter-spacing:.3em;color:var(--mute)}
+/* ---------- phase transitions ---------- */
+.mf-sky::after{content:"";position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease;
+  background:radial-gradient(90% 60% at 50% 100%,rgba(255,150,80,.35),transparent 70%),
+             linear-gradient(rgba(120,60,70,.25),transparent)}
+.mf.day .mf-sky::after{opacity:1}
+.mf-moon{transition:opacity 1.6s ease}
+.mf.day .mf-moon{opacity:.3}
+
+.mf-splash{position:fixed;inset:0;z-index:9;display:grid;place-items:center;pointer-events:none;
+  text-align:center;animation:splash 2.4s ease both}
+.mf-splash.night{background:radial-gradient(circle,rgba(28,6,14,.94),#050508 75%)}
+.mf-splash.day{background:radial-gradient(circle at 50% 65%,rgba(255,175,95,.92),rgba(80,16,28,.96) 80%)}
+@keyframes splash{0%{opacity:0}22%{opacity:1}75%{opacity:1}100%{opacity:0}}
+.mf-splash .ico{font-size:64px;animation:rise2 1.6s ease-out both}
+.mf-splash h1{margin:8px 0 0;font-family:'Oswald',sans-serif;font-weight:700;font-size:clamp(34px,6vw,64px);
+  letter-spacing:.08em;animation:rise2 1.6s ease-out .15s both}
+.mf-splash.night h1{color:#ff2a36;text-shadow:0 0 40px rgba(255,42,54,.7)}
+.mf-splash.day h1{color:#fff;text-shadow:0 0 40px rgba(255,255,255,.5)}
+.mf-splash p{margin:6px 0 0;color:rgba(255,255,255,.7);font-size:14px;letter-spacing:.2em;
+  animation:rise2 1.6s ease-out .3s both}
+@keyframes rise2{from{opacity:0;transform:translateY(18px)}}
+
+.mf-reveal{animation:reveal 1s ease 1.8s both}
+@keyframes reveal{0%{opacity:0;transform:scale(.92)}
+  45%{box-shadow:0 0 44px color-mix(in srgb,var(--rc) 75%,transparent)}100%{opacity:1;transform:none}}
+
+/* ---------- features ---------- */
+.mf-foot{position:absolute;bottom:22px;left:0;right:0;z-index:2;display:flex;justify-content:center;
+  gap:clamp(18px,5vw,64px);font-size:12px;color:var(--mute)}
+.mf-foot b{display:block;color:var(--text);font-size:13px}
+@media (max-width:760px){.mf-foot,.mf-slogan.r,.mf-moon{display:none}.mf-slogan{top:3%}}
+@media (max-height:800px){.mf-card{padding:24px 30px 20px}.mf-logo{margin-bottom:12px}.mf-logo svg{width:44px}.mf-tag{display:none}}
+@media (prefers-reduced-motion:reduce){.mf *,.mf *::before,.mf *::after{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.mf *,.mf *::before,.mf *::after{animation:none!important}.mf-splash{display:none}}
+`;
+
+const Emblem = () => (
+  <svg viewBox="0 0 100 80" fill="none">
+    <path d="M6 10 L34 30 L50 4 L66 30 L94 10 L82 46 L60 40 L50 76 L40 40 L18 46 Z"
+      fill="#f3f4f7" stroke="#ff2a36" strokeWidth="2.5" strokeLinejoin="round" />
+    <path d="M50 4 L50 76" stroke="#ff2a36" strokeWidth="2" />
+  </svg>
+);
+
+const UserIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" />
+  </svg>
+);
+
+// Drop photos into src/assets/avatars/ named like mafia-male.png, doctor-female.jpg ...
+// and they are used automatically. Anything missing falls back to the drawn avatar below.
+const avatarFiles = import.meta.glob("./assets/avatars/*", { eager: true, import: "default" });
+const findAvatar = (role, gender) => {
+  for (const ext of ["png", "jpg", "jpeg", "webp"]) {
+    const url = avatarFiles[`./assets/avatars/${role.toLowerCase()}-${gender}.${ext}`];
+    if (url) return url;
+  }
+  return null;
+};
+
+const ROLE_COLOR = { MAFIA: "#ff2a36", DOCTOR: "#35d49a", DETECTIVE: "#5aa7ff", CITIZEN: "#d7dae2" };
+
+function Avatar({ role = "CITIZEN", gender = "male", className = "" }) {
+  const photo = findAvatar(role, gender);
+  if (photo) return <img className={`av av-photo ${className}`} src={photo} alt="" style={{ "--rc": ROLE_COLOR[role] }} />;
+
+  const c = ROLE_COLOR[role] || ROLE_COLOR.CITIZEN;
+  const f = gender === "female";
+  const id = `${role}-${gender}`;
+  const gold = "#e3cf9b";
+  const face = f
+    ? "M64 84Q64 48 100 48Q136 48 136 84L131 112Q123 140 100 148Q77 140 69 112Z"
+    : "M62 86Q62 50 100 50Q138 50 138 86L135 116Q129 142 100 146Q71 142 65 116Z";
+  const lashes = "M72 91L65 86M76 89L71 83M128 91L135 86M124 89L129 83";
+
+  return (
+    <svg className={`av ${className}`} viewBox="0 0 200 200" aria-hidden="true" style={{ "--rc": c }}>
+      <defs>
+        <clipPath id={`c-${id}`}><circle cx="100" cy="100" r="98" /></clipPath>
+        <linearGradient id={`hd-${id}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#34353f" /><stop offset="1" stopColor="#0a0a0e" />
+        </linearGradient>
+        <linearGradient id={`sk-${id}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#050507" /><stop offset=".42" stopColor="#35261f" /><stop offset="1" stopColor="#b98469" />
+        </linearGradient>
+        <filter id="avGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="2.4" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+
+      <g clipPath={`url(#c-${id})`}>
+        <circle className="av-bg" cx="100" cy="100" r="100" />
+
+        {/* hoodie */}
+        <path d="M6 200Q10 152 58 142L100 160 142 142Q190 152 194 200Z" fill="#101015" stroke={c} strokeOpacity=".35" />
+        <path d="M86 160l-3 34M114 160l3 34" stroke="#cfd3dc" strokeWidth="2" strokeLinecap="round" opacity=".7" />
+        <path d="M100 12Q172 22 174 100Q176 142 150 152L50 152Q24 142 26 100Q28 22 100 12Z"
+          fill={`url(#hd-${id})`} stroke={c} strokeOpacity=".45" strokeWidth="1.5" />
+        <path d="M100 12V40" stroke="#fff" strokeOpacity=".18" strokeWidth="2" />
+        <ellipse cx="100" cy="98" rx="52" ry="60" fill="#050507" />
+
+        {/* long hair for female characters */}
+        {f && (
+          <path d="M58 70Q34 116 48 168Q62 146 66 108ZM142 70Q166 116 152 168Q138 146 134 108Z"
+            fill="#241613" stroke={c} strokeOpacity=".4" />
+        )}
+
+        {role === "MAFIA" ? (
+          <>
+            {/* black-and-gold mask, like the lobby portrait */}
+            <path d={face} fill="#0b0b10" stroke={gold} strokeWidth="1.4" />
+            <path d="M70 78Q80 70 96 82M130 78Q120 70 104 82" stroke={gold} strokeWidth="2.2" fill="none" strokeLinecap="round" />
+            <path d="M72 92Q82 88 92 94Q82 100 72 92ZM128 92Q118 88 108 94Q118 100 128 92Z" fill="#000" stroke={gold} strokeWidth="1.2" />
+            <g filter="url(#avGlow)" fill={c}><circle cx="82" cy="94" r="2.4" /><circle cx="118" cy="94" r="2.4" /></g>
+            <path d="M100 96Q94 112 101 114" stroke={gold} strokeOpacity=".5" strokeWidth="1.6" fill="none" />
+            <path d="M70 108Q84 132 100 128Q116 132 130 108" stroke={gold} strokeWidth="2" fill="none" />
+            <path d="M86 118Q93 113 100 117Q107 113 114 118" stroke={gold} strokeWidth="1.8" fill="none" />
+            <path d="M97 128V142M103 128V142" stroke={gold} strokeWidth="1.6" />
+            {f && <path d={lashes} stroke={gold} strokeWidth="1.6" strokeLinecap="round" />}
+          </>
+        ) : (
+          <>
+            <path d={face} fill={`url(#sk-${id})`} />
+            {!f && <path d="M67 112Q73 142 100 146Q127 142 133 112Q126 132 100 136Q74 132 67 112Z" fill="#000" opacity=".35" />}
+            <path d="M100 94Q95 107 101 109" stroke="#000" strokeOpacity=".35" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <g filter="url(#avGlow)" fill={c}>
+              <ellipse cx="82" cy="94" rx={f ? 8.5 : 8} ry={f ? 3.6 : 3} />
+              <ellipse cx="118" cy="94" rx={f ? 8.5 : 8} ry={f ? 3.6 : 3} />
+            </g>
+            {f && <path d={lashes} stroke={c} strokeWidth="1.6" strokeLinecap="round" />}
+
+            {role === "DOCTOR" ? (
+              <>
+                <path d="M63 108Q100 98 137 108L132 132Q100 150 68 132Z" fill="#35d49a" />
+                <path d="M72 114Q100 122 128 114M74 122Q100 130 126 122M78 130Q100 137 122 130" stroke="#fff" strokeOpacity=".35" strokeWidth="1.4" fill="none" />
+                <path d="M63 108L52 100M137 108L148 100" stroke="#9ff0cf" strokeWidth="1.6" />
+              </>
+            ) : f ? (
+              <path d="M88 122Q100 115 112 122Q100 131 88 122Z" fill="#b3263a" />
+            ) : (
+              <path d="M89 123Q100 127 111 123" stroke="#3a1712" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+            )}
+
+            {role === "DETECTIVE" && (
+              <>
+                <path d="M58 132Q100 158 142 132L150 156Q100 178 50 156Z" fill="#b38a55" />
+                <path d="M60 140Q100 162 140 140" stroke="#7d5d32" strokeWidth="2.5" fill="none" />
+                <circle cx="158" cy="146" r="17" fill="#5aa7ff" fillOpacity=".25" stroke="#d5dbe8" strokeWidth="4" />
+                <path d="M170 158L184 174" stroke="#d5dbe8" strokeWidth="6" strokeLinecap="round" />
+              </>
+            )}
+          </>
+        )}
+      </g>
+      <circle className="av-ring" cx="100" cy="100" r="98" />
+    </svg>
+  );
+}
+
+const Devil = () => (
+  <>
+    <div className="mf-glow" />
+    <img className="mf-devil" src={mafiaHood} alt="" />
+  </>
+);
+
+function Scene() {
+  const embers = useMemo(
+    () =>
+      Array.from({ length: 30 }, () => ({
+        "--x": `${Math.random() * 100}%`,
+        "--s": `${2 + Math.random() * 3}px`,
+        "--d": `${6 + Math.random() * 8}s`,
+        "--dl": `${-Math.random() * 12}s`,
+        "--dx": `${-60 + Math.random() * 120}px`,
+      })),
+    []
+  );
+  const windows = useMemo(
+    () => Array.from({ length: 34 }, () => ({ x: Math.random() * 1000, y: 40 + Math.random() * 100, d: Math.random() * 3 })),
+    []
+  );
+
+  return (
+    <>
+      <div className="mf-sky" />
+      <img className="mf-moon" src={bloodMoon} alt="" />
+      <div className="mf-cloud" />
+      <div className="mf-cloud c2" />
+      <div className="mf-city">
+        <svg viewBox="0 0 1000 160" preserveAspectRatio="none">
+          <path fill="#050507" d="M0 160V90h40v-30h30v40h30V70h40v-40h24v40h36v30h40V60h50v50h40V80h30V40h30v60h50V70h40v40h40V50h34v50h40V90h60V60h30v50h40V80h50v80z" />
+          {windows.map((w, i) => (
+            <rect key={i} className="mf-win" x={w.x} y={w.y} width="4" height="6" fill="#ff5a3c"
+              style={{ animationDelay: `${w.d}s` }} />
+          ))}
+        </svg>
+      </div>
+      <Devil />
+      {embers.map((s, i) => <span key={i} className="mf-ember" style={s} />)}
+      <div className="mf-vig" />
+      <div className="mf-slogan">Trust<br />No One.</div>
+      <div className="mf-slogan r">Lie well.<br />Win together.</div>
+    </>
+  );
+}
+
+const ROLES = {
+  MAFIA: { label: "Mafia", color: "#ff2a36", text: "Kill one player each night. Blend in during the day." },
+  DOCTOR: { label: "Doctor", color: "#35d49a", text: "Save one player each night. You can save yourself." },
+  DETECTIVE: { label: "Detective", color: "#5aa7ff", text: "Investigate one player each night to learn if they're Mafia." },
+  CITIZEN: { label: "Citizen", color: "#d7dae2", text: "No night power. Find the Mafia and vote them out." },
+};
+
+// Never keep other players' roles in the browser: keep only what the lobby shows
+// Roles only arrive from the server once the game is over, so keeping them is safe
+const clean = (r) => ({
+  ...r,
+  players: r.players.map(({ id, name, alive, left, role }) => ({ id, name, alive, left, ...(role ? { role } : {}) })),
+});
+
+const CODE_LEN = 5;
+const API = "/api";
+const SESSION_KEY = "mafia-session";
+
+async function loadRole(code, id) {
+  try {
+    const r = await fetch(`${API}/rooms/${code}/players/${id}`);
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+const NIGHT_ACTIONS = {
+  MAFIA: { path: "mafia/kill", field: "mafiaPlayerId", verb: "Eliminate", prompt: "Choose who to eliminate tonight.", self: false },
+  DOCTOR: { path: "doctor/save", field: "doctorPlayerId", verb: "Protect", prompt: "Choose who to protect tonight. You can pick yourself.", self: true },
+  DETECTIVE: { path: "detective/investigate", field: "detectivePlayerId", verb: "Investigate", prompt: "Choose who to investigate tonight.", self: false },
+};
+function Chat({ roomCode, me, canSend, open, setOpen }) {
+  const [msgs, setMsgs] = useState([]);
+  const [text, setText] = useState("");
+  const [err, setErr] = useState("");
+  const [unread, setUnread] = useState(0);
+  const box = useRef(null);
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  const merge = (a, b) => {
+    const seen = new Map();
+    [...a, ...b].forEach((m) => seen.set(`${m.timestamp}|${m.playerId}|${m.message}`, m));
+    return [...seen.values()];
+  };
+
+  useEffect(() => {
+    let live = true;
+    fetch(`${API}/rooms/${roomCode}/chat`)
+      .then((r) => r.json())
+      .then((d) => live && setMsgs((v) => merge(d.messages || [], v)))
+      .catch(() => {});
+    const onMsg = (m) => {
+      setMsgs((v) => merge(v, [m]));
+      if (!openRef.current && m.playerId !== me) setUnread((n) => n + 1);
+    };
+    socket.on("new-message", onMsg);
+    return () => {
+      live = false;
+      socket.off("new-message", onMsg);
+    };
+  }, [roomCode, me]);
+
+  useEffect(() => {
+    if (open) setUnread(0);
+  }, [open]);
+
+  useEffect(() => {
+    if (open && box.current) box.current.scrollTop = box.current.scrollHeight;
+  }, [msgs, open]);
+
+  const send = async () => {
+    const message = text.trim();
+    if (!message) return;
+    setErr("");
+    try {
+      const r = await fetch(`${API}/rooms/${roomCode}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: me, message }),
+      });
+      if (r.ok) setText("");
+      else setErr((await r.json()).message || "Could not send.");
+    } catch {
+      setErr("Can't reach the server.");
+    }
+  };
+
+  return (
+    <>
+      {!open && (
+        <button className="mf-chat-fab" onClick={() => setOpen(true)} aria-label="Open chat">
+          {unread > 0 && <span className="mf-badge">{unread}</span>}
+          <span className="t">CHAT</span>
+        </button>
+      )}
+
+      <aside className={`mf-chat-panel ${open ? "open" : ""}`} style={{ "--bg": `url(${mafiaHood})` }} aria-hidden={!open}>
+        <div className="mf-chat-head">
+          Town Chat
+          <button onClick={() => setOpen(false)} aria-label="Close chat">✕</button>
+        </div>
+
+        <div className="mf-msgs" ref={box}>
+          {msgs.length === 0 && <div className="mf-msg-empty">No messages yet.<br />Start the discussion.</div>}
+          {msgs.map((m, i) => (
+            <div key={i} className={`mf-msg ${m.playerId === me ? "me" : ""}`}>
+              <b>{m.playerName}</b>
+              {m.message}
+            </div>
+          ))}
+        </div>
+
+        <div className="mf-chat-foot">
+          {err && <div className="mf-err" role="alert" style={{ margin: "0 0 8px" }}>{err}</div>}
+          {canSend ? (
+            <div className="mf-chatbar">
+              <input
+                value={text}
+                maxLength={200}
+                placeholder="Say something…"
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+              />
+              <button onClick={send} disabled={!text.trim()}>Send</button>
+            </div>
+          ) : (
+            <p className="mf-note" style={{ margin: 0 }}>You're out, so you can read but not talk.</p>
+          )}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function Game({ room, me, role, gender, roomCode, intel, onFound,teammates = []}) {
+  const [pick, setPick] = useState(null);
+  const [votePick, setVotePick] = useState(null);
+  const [acted, setActed] = useState(false);
+  const [justFound, setJustFound] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const meta = ROLES[role] || ROLES.CITIZEN;
+  const action = NIGHT_ACTIONS[role];
+  const self = room.players.find((p) => p.id === me);
+  const alive = room.players.filter((p) => p.alive);
+    const mates = new Set(teammates.map((t) => t.id));
+  const post = async (url, body) => {
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        setErr(d.message || "That didn't work. Try again.");
+        return null;
+      }
+      return d;
+    } catch {
+      setErr("Can't reach the server. Check that it's running on port 3002.");
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const act = async () => {
+    if (!pick) return setErr("Pick a player first.");
+    const d = await post(`${API}/rooms/${roomCode}/${action.path}`, {
+      [action.field]: me,
+      targetPlayerId: pick,
+    });
+    if (!d) return;
+    if (role === "DETECTIVE") {
+      const f = { name: d.targetName, result: d.result };
+      onFound(f);
+      setJustFound(f);
+    }
+    setActed(true);
+  };
+
+  const vote = async () => {
+    if (!votePick) return setErr("Pick a player first.");
+    await post(`${API}/rooms/${roomCode}/vote`, { voterId: me, targetId: votePick });
+  };
+
+  const head = (title, sub) => (
+    <div className="mf-game" style={{ "--rc": meta.color }}>
+      <div className="mf-game-head">
+        <Avatar role={role} gender={gender} />
+        <h2>{title}</h2>
+        <p className="mf-sub">{sub}</p>
+      </div>
+    </div>
+  );
+
+  const roster = (
+    <ul className="mf-players">
+      {room.players.map((p, i) => (
+        <li className={`mf-player ${p.alive ? "" : "dead"}`} key={p.id} style={{ "--i": i }}>
+          <span className="mf-avatar">{p.name.charAt(0).toUpperCase()}</span>
+          {p.name}
+          {p.id === me && <span className="mf-host">You</span>}
+          {!p.alive && <span className="mf-host" style={{ color: "#8b8f9a", borderColor: "#444" }}>Out</span>}
+        </li>
+      ))}
+    </ul>
+  );
+
+  const notebook =
+    role === "DETECTIVE" && intel.length > 0 ? (
+      <div className="mf-verdict" style={{ "--rc": "#5aa7ff" }}>
+        {intel.map((f, i) => (
+          <div key={i}>
+            {f.name} is {f.result === "MAFIA" ? "Mafia" : "not Mafia"}.
+          </div>
+        ))}
+      </div>
+    ) : null;
+
+  // game over
+  if (room.status === "FINISHED") {
+    const mafiaWon = room.winner === "MAFIA";
+    const wc = mafiaWon ? "#ff2a36" : "#35d49a";
+    const iWon = mafiaWon ? role === "MAFIA" : role !== "MAFIA";
+    const oc = iWon ? "#35d49a" : "#ff6b73";
+
+    return (
+      <>
+        <div className="mf-over" style={{ "--wc": wc, "--oc": oc }}>
+          <div className="crest">{mafiaWon ? "🎭" : "🛡️"}</div>
+          <h2>{mafiaWon ? "The Mafia Win" : "The Citizens Win"}</h2>
+          <p className="mf-sub">{room.lastResult || "The game is over."}</p>
+          <span className="mf-outcome">{iWon ? "YOU WON" : "YOU LOST"}</span>
+        </div>
+
+        <p className="mf-reveal-label">WHO WAS WHO</p>
+        <ul className="mf-players">
+          {room.players.map((p, i) => {
+            const r = ROLES[p.role] || ROLES.CITIZEN;
+            return (
+              <li className={`mf-player ${p.alive ? "" : "dead"}`} key={p.id} style={{ "--i": i }}>
+                <span className="mf-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                {p.name}{p.id === me ? " (you)" : ""}
+                <span className="mf-role-chip" style={{ "--rc": r.color }}>{r.label}</span>
+              </li>
+            );
+          })}
+        </ul>
+
+        {err && <div className="mf-err" role="alert" style={{ marginTop: 10 }}>{err}</div>}
+       {room.hostId === me ? (
+          <button
+            className="mf-btn"
+            style={{ marginTop: 14 }}
+            disabled={busy}
+            onClick={() => post(`${API}/rooms/${roomCode}/reset`, { playerId: me })}
+          >
+            {busy ? "Working…" : "Play Again"}
+          </button>
+        ) : (
+          <>
+            <div className="mf-wait" aria-label="Waiting"><i /><i /><i /></div>
+            <p className="mf-note">Waiting for the host to play again…</p>
+          </>
+        )}
+      </>
+    );
+  }
+
+  // eliminated players just watch
+    if (self && !self.alive) {
+    return (
+      <>
+        {head("You're Out", "You can no longer act, but you can watch the rest of the game.")}
+        {room.lastResult && <div className="mf-verdict" style={{ "--rc": "#8b8f9a" }}>{room.lastResult}</div>}
+        
+        {roster}
+      </>
+    );
+  }
+
+  // morning: discussion + voting
+  if (room.phase === "DAY") {
+    const votes = room.votes || [];
+    const hasVoted = votes.some((v) => v.voterId === me);
+    const candidates = alive.filter((p) => p.id !== me);
+        const res = room.lastResult || "A quiet night.";
+    const tone = /killed/.test(res)
+      ? { c: "#ff2a36", icon: "💀" }
+      : /saved/.test(res)
+      ? { c: "#35d49a", icon: "🛡️" }
+      : /voted out/.test(res)
+      ? { c: "#ffb454", icon: "⚖️" }
+      : { c: meta.color, icon: "🌅" };
+    return (
+      <>
+        {head("Morning", "Discuss, then vote out who you think is Mafia.")}
+               <div className="mf-verdict mf-reveal" style={{ "--rc": tone.c }}>{tone.icon} {res}</div>
+        {notebook}
+        
+
+        {hasVoted ? (
+          <>
+            <div className="mf-wait" aria-label="Waiting"><i /><i /><i /></div>
+            <p className="mf-note">Vote cast. Waiting for the others… ({votes.length}/{alive.length})</p>
+          </>
+        ) : (
+          <>
+            <ul className="mf-players" style={{ "--rc": meta.color }}>
+              {candidates.map((p) => (
+                <li key={p.id} style={{ listStyle: "none" }}>
+                  <button className={`mf-pick ${votePick === p.id ? "on" : ""}`} onClick={() => setVotePick(p.id)}>
+                    <span className="mf-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                    {p.name}
+                    {mates.has(p.id) && <span className="mf-host">Ally</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {err && <div className="mf-err" role="alert" style={{ marginTop: 10 }}>{err}</div>}
+            <button className="mf-btn" style={{ marginTop: 14 }} onClick={vote} disabled={busy || !votePick}>
+              {busy ? "Working…" : "Vote"}
+            </button>
+            <p className="mf-note">{votes.length}/{alive.length} votes cast</p>
+          </>
+        )}
+      </>
+    );
+  }
+
+  // night: citizens have no action
+  if (!action) {
+    return (
+      <>
+        {head("Night Falls", "Close your eyes. Others are making their moves.")}
+        <div className="mf-wait" aria-label="Waiting"><i /><i /><i /></div>
+        <p className="mf-note">You have no power at night. Wait for the morning.</p>
+      </>
+    );
+  }
+
+  // night: action already used
+  if (acted) {
+    return (
+      <>
+        {head("Night Falls", "Your move is made.")}
+        {justFound && (
+          <div className="mf-verdict" style={{ "--rc": justFound.result === "MAFIA" ? "#ff2a36" : "#35d49a" }}>
+            {justFound.name} is {justFound.result === "MAFIA" ? "Mafia" : "not Mafia"}.
+          </div>
+        )}
+        <div className="mf-wait" aria-label="Waiting"><i /><i /><i /></div>
+        <p className="mf-note">Waiting for the others to finish…</p>
+      </>
+    );
+  }
+
+  // night: choose a target
+    const targets = alive.filter((p) => (action.self || p.id !== me) && !mates.has(p.id));
+  return (
+    <>
+      {head("Night Falls", action.prompt)}
+            {role === "MAFIA" && teammates.length > 0 && (
+        <p className="mf-note" style={{ margin: "0 0 6px", color: "#ff6b73" }}>
+          Partner: {teammates
+            .map((t) => `${t.name}${room.players.find((p) => p.id === t.id)?.alive ? "" : " (out)"}`)
+            .join(", ")}
+        </p>
+      )}
+      <ul className="mf-players" style={{ "--rc": meta.color }}>
+        {targets.map((p) => (
+          <li key={p.id} style={{ listStyle: "none" }}>
+            <button className={`mf-pick ${pick === p.id ? "on" : ""}`} onClick={() => setPick(p.id)}>
+              <span className="mf-avatar">{p.name.charAt(0).toUpperCase()}</span>
+              {p.name}{p.id === me ? " (you)" : ""}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {err && <div className="mf-err" role="alert" style={{ marginTop: 10 }}>{err}</div>}
+      <button className="mf-btn" style={{ marginTop: 14 }} onClick={act} disabled={busy || !pick}>
+        {busy ? "Working…" : action.verb}
+      </button>
+    </>
+  );
+}
+
+function App() {
+  const [mode, setMode] = useState("create");
+  const [playerName, setPlayerName] = useState("");
+  const [chars, setChars] = useState(Array(CODE_LEN).fill(""));
+  const [roomCode, setRoomCode] = useState("");
+  const [room, setRoom] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [dir, setDir] = useState("18px");
+  const boxes = useRef([]);
+  const [myId, setMyId] = useState(null);
+  const [myRole, setMyRole] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [gender, setGender] = useState("male");
+  const [stage, setStage] = useState("role");
+  const [intel, setIntel] = useState([]); // detective results, kept across phases
+  const [chatOpen, setChatOpen] = useState(false);
+  const [splash, setSplash] = useState(null);
+  const lastPhase = useRef(null);
+  const splashTimer = useRef(null);
+  const joining = mode === "join";
+  const code = chars.join("");
+
+  const fail = (msg) => {
+    setError(msg);
+    setShakeKey((k) => k + 1);
+  };
+
+  const switchMode = (next) => {
+    if (next === mode) return;
+    setDir(next === "join" ? "18px" : "-18px");
+    setError("");
+    setMode(next);
+  };
+
+  // ----- room code boxes -----
+  const setChar = (i, value) => {
+    const c = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(-1);
+    setChars((prev) => {
+      const next = [...prev];
+      next[i] = c;
+      return next;
+    });
+    if (c && i < CODE_LEN - 1) boxes.current[i + 1]?.focus();
+  };
+
+  const onKey = (e, i) => {
+    if (e.key === "Backspace" && !chars[i] && i > 0) boxes.current[i - 1]?.focus();
+    if (e.key === "ArrowLeft" && i > 0) boxes.current[i - 1]?.focus();
+    if (e.key === "ArrowRight" && i < CODE_LEN - 1) boxes.current[i + 1]?.focus();
+    if (e.key === "Enter") submit();
+  };
+
+  const onPaste = (e) => {
+    const text = e.clipboardData
+      .getData("text")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, CODE_LEN);
+    if (!text) return;
+    e.preventDefault();
+    setChars(Array.from({ length: CODE_LEN }, (_, i) => text[i] || ""));
+    boxes.current[Math.min(text.length, CODE_LEN - 1)]?.focus();
+  };
+
+  // ----- create or join -----
+  const submit = async () => {
+    if (!playerName.trim()) return fail("Enter your name first.");
+    if (joining && code.length < CODE_LEN)
+      return fail(`Enter the full ${CODE_LEN}-character room code.`);
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const url = joining ? `${API}/rooms/${code}/join` : `${API}/rooms`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerName: playerName.trim() }),
+      });
+      const data = await response.json();
+
+      if (!response.ok)
+        return fail(data.message || (joining ? "Could not join that room." : "Could not create the room."));
+
+      const list = data.room.players;
+      setMyId(joining ? list[list.length - 1].id : list[0].id);
+      setRoom(data.room);
+      setRoomCode(data.room.roomCode);
+      
+    } catch {
+      fail("Can't reach the server. Check that it's running on port 3002.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Live lobby: backend emits "player-joined" to everyone already in the room
+  useEffect(() => {
+    if (!roomCode) return;
+
+    const refreshRoom = async () => {
+      try {
+        const response = await fetch(`${API}/rooms/${roomCode}`);
+        if (response.ok) setRoom(clean(await response.json()));
+      } catch {}
+    };
+
+    socket.on("player-joined", refreshRoom);
+    socket.on("phase-changed", refreshRoom);
+    return () => {
+      socket.off("player-joined", refreshRoom);
+      socket.off("phase-changed", refreshRoom);
+    };
+  }, [roomCode]);
+
+  // Everyone in the room learns the game started, then fetches ONLY their own role
+  useEffect(() => {
+    if (!roomCode || !myId) return;
+       const onStarted = () => enterGame();
+    socket.on("game-started", onStarted);
+    return () => socket.off("game-started", onStarted);
+  }, [roomCode, myId]);
+   const enterGame = async () => {
+    const [mine, r] = await Promise.all([
+      loadRole(roomCode, myId),
+      fetch(`${API}/rooms/${roomCode}`).catch(() => null),
+    ]);
+    if (r?.ok) setRoom(clean(await r.json()));
+    if (mine?.role) setMyRole(mine);
+  };
+  const startGame = async () => {
+    setError("");
+    setStarting(true);
+    try {
+            const response = await fetch(`${API}/rooms/${roomCode}/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: myId }),
+      });
+      const data = await response.json();
+      if (!response.ok) return fail(data.message || "Could not start the game.");
+            await enterGame();
+    } catch {
+      fail("Can't reach the server. Check that it's running on port 3002.");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // Safety net: if a socket event is missed, check the room every few seconds
+  useEffect(() => {
+    if (!roomCode || !myId) return;
+    const tick = async () => {
+      try {
+        const r = await fetch(`${API}/rooms/${roomCode}`);
+                if (r.status === 404) { resetToStart(); return; }   // room closed or server restarted
+        if (!r.ok) return;
+        const data = await r.json();
+        const seat = data.players.find((p) => p.id === myId);
+        if (!seat || seat.left) { resetToStart(); return; }  // I was removed
+        setRoom(clean(data));
+        if (data.status === "IN_PROGRESS" && !myRole) {
+          const mine = await loadRole(roomCode, myId);
+          if (mine?.role) setMyRole(mine);
+        }
+      } catch {}
+    };
+    const t = setInterval(tick, 2500);
+    return () => clearInterval(t);
+  }, [roomCode, myId, myRole]);
+
+    // Full-screen "Night falls" / "The sun rises" whenever the phase changes
+  useEffect(() => {
+    const playing = room && myRole && stage === "game" && room.status === "IN_PROGRESS";
+    if (!playing) {
+      lastPhase.current = null;
+      return;
+    }
+    if (lastPhase.current === room.phase) return;
+    lastPhase.current = room.phase;
+    setSplash(room.phase);
+    clearTimeout(splashTimer.current);
+    splashTimer.current = setTimeout(() => setSplash(null),3600);
+  }, [room, myRole, stage]);
+    // Refresh-proof: remember who I am in this tab and rejoin after a reload
+  useEffect(() => {
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch {}
+    if (!saved?.roomCode || !saved?.myId) return;
+
+    (async () => {
+      try {
+        const r = await fetch(`${API}/rooms/${saved.roomCode}`);
+        const data = r.ok ? await r.json() : null;
+       if (!data || !data.players.some((p) => p.id === saved.myId && !p.left))  {
+          sessionStorage.removeItem(SESSION_KEY); // room is gone (server restarted)
+          return;
+        }
+        setGender(saved.gender || "male");
+        setIntel(saved.intel || []);
+        setMyId(saved.myId);
+        setRoom(clean(data));
+        setRoomCode(saved.roomCode);
+        if (data.status !== "WAITING") {
+          const mine = await loadRole(saved.roomCode, saved.myId);
+          if (mine?.role) setMyRole(mine);
+        }
+      } catch {}
+    })();
+  }, []);
+
+  // Save my seat whenever it changes
+  useEffect(() => {
+    if (!roomCode || !myId) return;
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ roomCode, myId, gender, intel }));
+    } catch {}
+  }, [roomCode, myId, gender, intel]);
+
+  // Join the socket room now, and again after every reconnect or reload
+    useEffect(() => {
+    if (!roomCode || !myId) return;
+    const rejoin = () => socket.emit("join-room", { roomCode, playerId: myId });
+    rejoin();
+    socket.on("connect", rejoin);
+    return () => socket.off("connect", rejoin);
+  }, [roomCode, myId]);
+
+  // "Play Again": when the host resets, everyone goes back to the lobby
+   // "Play Again": reset only when a game that was running goes back to WAITING
+  const prevStatus = useRef(null);
+  useEffect(() => {
+    const s = room?.status ?? null;
+    if (prevStatus.current && prevStatus.current !== "WAITING" && s === "WAITING") {
+      setMyRole(null);
+      setStage("role");
+      setRevealed(false);
+      setIntel([]);
+      setSplash(null);
+      setChatOpen(false);
+    }
+    prevStatus.current = s;
+  }, [room?.status]);
+    const resetToStart = () => {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    setRoom(null); setRoomCode(""); setMyId(null); setMyRole(null);
+    setStage("role"); setRevealed(false); setIntel([]); setSplash(null);
+    setChatOpen(false); setChars(Array(CODE_LEN).fill("")); setError("");
+  };
+
+  const leaveRoom = async () => {
+    const code = roomCode, id = myId;
+    socket.emit("leave-room", code);
+    try {
+      await fetch(`${API}/rooms/${code}/leave`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: id }),
+      });
+    } catch {}
+    resetToStart();
+  };
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+  const me = room?.players.find((p) => p.id === myId);
+const showChat = Boolean(room && myRole && stage === "game" && room.status === "IN_PROGRESS" && room.phase === "DAY");
+const isDay = Boolean(room && myRole && stage === "game" && room.status === "IN_PROGRESS" && room.phase === "DAY");
+  return (
+    
+   <div className={`mf ${isDay ? "day" : ""} 
+   ${showChat && chatOpen ? "chat-open" : ""}`}>
+      <style>{css}</style>
+      <Scene />
+
+      <main className="mf-card">
+        <div className="mf-logo">
+          <Emblem />
+          <div className="mf-brand">MAFIA<b>NIGHT</b></div>
+          <div className="mf-tag">LIE · DEDUCE · SURVIVE</div>
+        </div>
+
+        {!room ? (
+          <>
+            <div className="mf-tabs" data-mode={mode} role="tablist">
+              <i />
+              <button role="tab" aria-selected={!joining} onClick={() => switchMode("create")}>
+                Create Room
+              </button>
+              <button role="tab" aria-selected={joining} onClick={() => switchMode("join")}>
+                Join Room
+              </button>
+            </div>
+
+            <div className="mf-swap" key={mode} style={{ "--dir": dir }}>
+              <h2>{joining ? "Join a Room" : "Create a Room"}</h2>
+              <p className="mf-sub">
+                {joining
+                  ? "Enter the code your host shared with you."
+                  : "Pick a name, get a code, and bring your friends in."}
+              </p>
+
+              <div className="mf-field" key={`n${shakeKey}`}>
+                <UserIcon />
+                <input
+                  className={`mf-input ${error && !joining ? "mf-shake" : ""}`}
+                  type="text"
+                  maxLength={20}
+                  placeholder="Your name"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submit()}
+                  autoFocus
+                />
+              </div>
+
+              <div className="mf-gender" role="group" aria-label="Character">
+                {["male", "female"].map((g) => (
+                  <button key={g} type="button" aria-pressed={gender === g} onClick={() => setGender(g)}>
+                    {g === "male" ? "Male character" : "Female character"}
+                  </button>
+                ))}
+              </div>
+
+              {joining && (
+                <>
+                  <p className="mf-label">Room code</p>
+                  <div className={`mf-codeinput ${error ? "mf-shake" : ""}`} key={`c${shakeKey}`} onPaste={onPaste}>
+                    {chars.map((c, i) => (
+                      <input
+                        key={i}
+                        ref={(el) => (boxes.current[i] = el)}
+                        value={c}
+                        placeholder="·"
+                        maxLength={2}
+                        inputMode="text"
+                        autoComplete="off"
+                        aria-label={`Room code character ${i + 1}`}
+                        onChange={(e) => setChar(i, e.target.value)}
+                        onKeyDown={(e) => onKey(e, i)}
+                        onFocus={(e) => e.target.select()}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {error && <div className="mf-err" role="alert">{error}</div>}
+
+              <button className="mf-btn" onClick={submit} disabled={loading}>
+                {loading
+                  ? joining ? "Entering room…" : "Creating room…"
+                  : joining ? "Join Room" : "Create Room"}
+              </button>
+
+              <p className="mf-note">
+                {joining
+                  ? "Don't have a code? Ask the host, or create your own room."
+                  : "Up to 10 players can join with your room code."}
+              </p>
+            </div>
+          </>
+        ) : myRole && stage === "role" ? (
+          <>
+            <h2>Your Role</h2>
+            <p className="mf-sub">Keep it secret. Tap the card to peek, tap again to hide.</p>
+            {(() => {
+              const role = ROLES[myRole.role] || ROLES.CITIZEN;
+              const toggle = () => setRevealed((v) => !v);
+              return (
+                <div
+                  className={`mf-role ${revealed ? "open" : ""}`}
+                  style={{ "--rc": role.color }}
+                  onClick={toggle}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggle()}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={revealed ? `Your role: ${role.label}` : "Reveal your role"}
+                >
+                  <div className="mf-role-in">
+  <div className="mf-face mf-front">
+    <img className="mf-hood" src={mafiaHood} alt="" />
+    <span>Tap to reveal your role</span>
+  </div>
+  <div className="mf-face mf-back">
+    <Avatar role={myRole.role} gender={gender} />
+    <strong>{role.label}</strong>
+    <span>{role.text}</span>
+    {myRole.role === "MAFIA" && (
+      <span className="mf-team">
+        {myRole.teammates?.length
+          ? `Your partner${myRole.teammates.length > 1 ? "s" : ""}: ${myRole.teammates.map((t) => t.name).join(", ")}`
+          : "You work alone."}
+      </span>
+    )}
+  </div>
+</div>
+                </div>
+              );
+            })()}
+            <button className="mf-btn" style={{ marginTop: 6 }} onClick={() => setStage("game")}>
+              Continue
+            </button>
+            <p className="mf-note">Memorise your role, then continue to the night.</p>
+          </>
+        ) : myRole ? (
+          <Game
+            key={room.phase}
+            room={room}
+            me={myId}
+            role={myRole.role}
+            gender={gender}
+            roomCode={roomCode}
+            intel={intel}
+            onFound={(f) => setIntel((v) => [...v, f])}
+            teammates={myRole.teammates || []}
+          />
+        ) : (
+          <>
+           <h2>{room.hostId === myId ? "Room Created" : "You're In"}</h2>
+   <p className="mf-sub">
+  {room.hostId === myId ? "Share this code with your friends." : "Waiting for the host to start the game."}
+   </p>
+
+            <div className="mf-code" aria-label={`Room code ${roomCode}`}>
+              {roomCode.split("").map((c, i) => (
+                <span key={i} style={{ "--i": i }}>{c}</span>
+              ))}
+            </div>
+
+            <button className="mf-btn ghost" onClick={copyCode}>
+              {copied ? "Copied" : "Copy code"}
+            </button>
+
+            <ul className="mf-players">
+              {room.players.map((player, i) => (
+                <li className="mf-player" key={player.id} style={{ "--i": i }}>
+                  <span className="mf-avatar">{player.name.charAt(0).toUpperCase()}</span>
+                  {player.name}
+                  {player.id === room.hostId && <span className="mf-host">Host</span>}
+                </li>
+              ))}
+            </ul>
+
+            {room.hostId === myId ? (
+              <>
+                {error && <div className="mf-err" role="alert" style={{ marginTop: 12 }}>{error}</div>}
+                <button className="mf-btn" style={{ marginTop: 16 }} onClick={startGame}
+                  disabled={starting || room.players.length < 4}>
+                  {starting ? "Dealing roles…" : "Start Game"}
+                </button>
+                <p className="mf-note">
+                  {room.players.length < 4
+                    ? `Need ${4 - room.players.length} more player${4 - room.players.length > 1 ? "s" : ""} to start.`
+                    : "Everyone in? Start when you're ready."}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="mf-wait" aria-label="Waiting for the host"><i /><i /><i /></div>
+                <p className="mf-note">Waiting for the host to start the game…</p>
+              </>
+            )}
+          </>
+        )}
+                {room && (
+          <button
+            className="mf-leave"
+            onClick={() => {
+              const inGame = myRole && room.status === "IN_PROGRESS";
+              if (window.confirm(inGame ? "Leave the game? You'll be out for everyone." : "Leave this room?")) leaveRoom();
+            }}
+          >
+            Leave room
+          </button>
+        )}
+        {showChat && (
+  <Chat
+    roomCode={roomCode}
+    me={myId}
+    canSend={Boolean(me?.alive)}
+    open={chatOpen}
+    setOpen={setChatOpen}
+  />
+)}
+      </main>
+
+      <footer className="mf-foot">
+        <div><b>Create</b>Your own room</div>
+        <div><b>Invite</b>Friends with a code</div>
+        <div><b>Survive</b>The night</div>
+      </footer>
+               {splash && <PhaseSplash key={splash} phase={splash} />}
+    </div>
+  );
+}
+
+export default App;
