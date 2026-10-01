@@ -1,0 +1,34 @@
+/* ---------- phone chat: popups one by one, tap to open the whole chat ---------- */
+.mf-toasts{display:none}
+
+@media (max-width:760px){
+  /* popup bubbles above the chat button */
+  .mf-toasts{position:fixed;left:12px;right:96px;bottom:22px;z-index:7;display:flex;flex-direction:column;
+    gap:8px;pointer-events:none}
+  .mf-toast{pointer-events:auto;display:grid;gap:1px;max-width:100%;text-align:left;cursor:pointer;
+    padding:9px 12px;border-radius:16px 16px 16px 4px;border:1px solid rgba(255,42,54,.45);
+    color:var(--text);font:inherit;font-size:14px;backdrop-filter:blur(10px);
+    background:linear-gradient(rgba(8,8,12,.88),rgba(8,8,12,.92));
+    box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 18px rgba(255,42,54,.2);
+    animation:toastIn .35s cubic-bezier(.2,.9,.3,1) both,toastOut .4s ease 4.1s forwards}
+  .mf-toast b{color:var(--red);font-size:12px;font-weight:600}
+  .mf-toast span{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    word-break:break-word}
+
+  /* the full chat takes the whole screen */
+  .mf-chat-panel{inset:0;width:100%;max-height:none;height:100dvh;border-radius:0;border:0;
+    padding-top:env(safe-area-inset-top)}
+  .mf-chat-head{padding:14px 16px;font-size:19px}
+  .mf-chat-head button{width:40px;height:40px}
+  .mf-msgs{padding:14px 14px 8px;font-size:15px}
+  .mf-msg{max-width:84%}
+  .mf-chat-foot{padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
+  .mf-chatbar input{height:46px}
+  .mf-chatbar button{height:46px;width:78px}
+
+  /* the Leave button would cover the close button */
+  .mf.chat-open .mf-leave-fab{display:none}
+}
+
+@keyframes toastIn{from{opacity:0;transform:translateY(16px) scale(.95)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-8px)}}

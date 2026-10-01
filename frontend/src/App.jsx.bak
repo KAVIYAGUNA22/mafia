@@ -18,7 +18,7 @@ html,body{margin:0;min-height:100%;background:var(--bg)}
 body{display:block!important;place-items:unset!important;min-width:0!important}
 #root{max-width:none!important;width:100%!important;margin:0!important;padding:0!important;text-align:left!important}
 .mf{position:relative;min-height:100vh;display:grid;place-items:center;overflow:hidden;
-  font-family:'Inter',system-ui,sans-serif;color:var(--text);padding:24px 24px 100px}
+  font-family:'Inter',system-ui,sans-serif;color:var(--text);padding:24px}
 
 /* ---------- scene ---------- */
 .mf-sky{position:absolute;inset:0;background:
@@ -53,7 +53,7 @@ body{display:block!important;place-items:unset!important;min-width:0!important}
   text-shadow:0 0 30px rgba(120,140,200,.25);animation:slogan 1.4s ease-out both .3s}
 @keyframes slogan{from{opacity:0;letter-spacing:.3em;filter:blur(6px)}}
 .mf-slogan.r{left:auto;right:6%;top:auto;bottom:8%;font-size:clamp(20px,2.4vw,32px);transform:rotate(-5deg)}
-.mf-chat-panel.mafia{border-color:rgba(255,42,54,.85);box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 40px rgba(255,42,54,.4)}
+
 /* ---------- devil mafia ---------- */
 .mf-glow{position:absolute;left:-6%;bottom:-14%;width:min(58vw,96vh);aspect-ratio:1;border-radius:50%;z-index:0;
   background:radial-gradient(circle,rgba(255,30,45,.4),transparent 65%);animation:aura 4s ease-in-out infinite}
@@ -89,7 +89,7 @@ body{display:block!important;place-items:unset!important;min-width:0!important}
   background:var(--panel);backdrop-filter:blur(18px) saturate(1.2);border:1px solid var(--line);
   box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(255,42,54,.06),inset 0 1px 0 rgba(255,255,255,.06);
   animation:card .9s cubic-bezier(.2,.9,.25,1) both;
- display:flex;flex-direction:column;max-height:calc(100vh - 140px)}
+  display:flex;flex-direction:column;max-height:calc(100vh - 150px)}
 .mf-card>*{flex-shrink:0}
 @keyframes card{from{opacity:0;transform:translateY(40px) scale(.96)}}
 .mf-card::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;
@@ -352,43 +352,6 @@ body{display:block!important;place-items:unset!important;min-width:0!important}
 @media (max-height:800px){.mf-card{padding:24px 30px 20px}.mf-logo{margin-bottom:12px}.mf-logo svg{width:44px}.mf-tag{display:none}}
 @media (prefers-reduced-motion:reduce){.mf *,.mf *::before,.mf *::after{animation:none!important}}
 @media (prefers-reduced-motion:reduce){.mf *,.mf *::before,.mf *::after{animation:none!important}.mf-splash{display:none}}
-
-/* ---------- phone chat: popups one by one, tap to open the whole chat ---------- */
-.mf-toasts{display:none}
-
-@media (max-width:760px){
-  /* popup bubbles above the chat button */
-  .mf-toasts{position:fixed;left:12px;right:96px;bottom:22px;z-index:7;display:flex;flex-direction:column;
-    gap:8px;pointer-events:none}
-  .mf-toast{pointer-events:auto;display:grid;gap:1px;max-width:100%;text-align:left;cursor:pointer;
-    padding:9px 12px;border-radius:16px 16px 16px 4px;border:1px solid rgba(255,42,54,.45);
-    color:var(--text);font:inherit;font-size:14px;backdrop-filter:blur(10px);
-    background:linear-gradient(rgba(8,8,12,.88),rgba(8,8,12,.92));
-    box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 18px rgba(255,42,54,.2);
-    animation:toastIn .35s cubic-bezier(.2,.9,.3,1) both,toastOut .4s ease 4.1s forwards}
-  .mf-toast b{color:var(--red);font-size:12px;font-weight:600}
-  .mf-toast span{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-    word-break:break-word}
-
-  /* the full chat takes the whole screen */
-  .mf-chat-panel{inset:0;width:100%;max-height:none;height:100dvh;border-radius:0;border:0;
-    padding-top:env(safe-area-inset-top)}
-  .mf-chat-head{padding:14px 16px;font-size:19px}
-  .mf-chat-head button{width:40px;height:40px}
-  .mf-msgs{padding:14px 14px 8px;font-size:15px}
-  .mf-msg{max-width:84%}
-  .mf-chat-foot{padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
-  .mf-chatbar input{height:46px}
-  .mf-chatbar button{height:46px;width:78px}
-
-  /* the Leave button would cover the close button */
-  .mf.chat-open .mf-leave-fab{display:none}
-}
-
-@keyframes toastIn{from{opacity:0;transform:translateY(16px) scale(.95)}}
-@keyframes toastOut{to{opacity:0;transform:translateY(-8px)}}
-
-
 `;
 
 const Emblem = () => (
@@ -541,7 +504,7 @@ function Scene() {
   );
 
   return (
-    <div className="mf-scene">
+    <>
       <div className="mf-sky" />
       <img className="mf-moon" src={bloodMoon} alt="" />
       <div className="mf-cloud" />
@@ -560,7 +523,7 @@ function Scene() {
       <div className="mf-vig" />
       <div className="mf-slogan">Trust<br />No One.</div>
       <div className="mf-slogan r">Lie well.<br />Win together.</div>
-    </div>
+    </>
   );
 }
 
@@ -596,16 +559,12 @@ const NIGHT_ACTIONS = {
   DOCTOR: { path: "doctor/save", field: "doctorPlayerId", verb: "Protect", prompt: "Choose who to protect tonight. You can pick yourself.", self: true },
   DETECTIVE: { path: "detective/investigate", field: "detectivePlayerId", verb: "Investigate", prompt: "Choose who to investigate tonight.", self: false },
 };
-function Chat({ roomCode, me, meName, canSend, open, setOpen, kind = "town" }) {
-  const isMafia = kind === "mafia";
+function Chat({ roomCode, me, canSend, open, setOpen }) {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
   const [err, setErr] = useState("");
   const [unread, setUnread] = useState(0);
-  const [toasts, setToasts] = useState([]);
   const box = useRef(null);
-  const countRef = useRef(0);
-  const loadRef = useRef(null);
   const openRef = useRef(open);
   openRef.current = open;
 
@@ -615,24 +574,7 @@ function Chat({ roomCode, me, meName, canSend, open, setOpen, kind = "town" }) {
     return [...seen.values()];
   };
 
-  const isMine = (m) => m.playerId === me || Boolean(meName && m.playerName === meName);
-
-  // badge + popup bubbles for messages from other people while the panel is closed
-  const notify = (fresh) => {
-    if (openRef.current) return;
-    const others = fresh.filter((m) => !isMine(m));
-    if (!others.length) return;
-    setUnread((n) => n + others.length);
-    others.forEach((m) => {
-      const id = String(Math.random());
-      setToasts((t) => [...t.slice(-2), { id, name: m.playerName, text: m.message }]);
-      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4500);
-    });
-  };
-
-  // town chat: history + live messages
   useEffect(() => {
-    if (isMafia) return;
     let live = true;
     fetch(`${API}/rooms/${roomCode}/chat`)
       .then((r) => r.json())
@@ -640,59 +582,17 @@ function Chat({ roomCode, me, meName, canSend, open, setOpen, kind = "town" }) {
       .catch(() => {});
     const onMsg = (m) => {
       setMsgs((v) => merge(v, [m]));
-      notify([m]);
+      if (!openRef.current && m.playerId !== me) setUnread((n) => n + 1);
     };
     socket.on("new-message", onMsg);
     return () => {
       live = false;
       socket.off("new-message", onMsg);
     };
-  }, [roomCode, me, isMafia]);
+  }, [roomCode, me]);
 
-  // mafia chat: load from the mafia endpoint, refresh on updates
   useEffect(() => {
-    if (!isMafia) return;
-    let live = true;
-    let first = true;
-    const load = async () => {
-      try {
-        const r = await fetch(`${API}/rooms/${roomCode}/mafia?playerId=${me}`);
-        if (!r.ok || !live) return;
-        const list = (await r.json()).messages || [];
-        const prev = countRef.current;
-        countRef.current = list.length;
-        setMsgs(list);
-        if (!first && list.length > prev) notify(list.slice(prev));
-        first = false;
-      } catch {}
-    };
-    loadRef.current = load;
-    load();
-    socket.on("mafia-update", load);
-    const t = setInterval(load, 2500);
-    return () => {
-      live = false;
-      socket.off("mafia-update", load);
-      clearInterval(t);
-    };
-  }, [roomCode, me, isMafia]);
-
-  // opening the chat clears the badge and popups
-  useEffect(() => {
-    if (open) {
-      setUnread(0);
-      setToasts([]);
-    }
-  }, [open]);
-
-  // full-screen chat on phones: stop the page behind it from scrolling
-  useEffect(() => {
-    if (!open || !window.matchMedia("(max-width:760px)").matches) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    if (open) setUnread(0);
   }, [open]);
 
   useEffect(() => {
@@ -704,15 +604,13 @@ function Chat({ roomCode, me, meName, canSend, open, setOpen, kind = "town" }) {
     if (!message) return;
     setErr("");
     try {
-      const r = await fetch(`${API}/rooms/${roomCode}/${isMafia ? "mafia/chat" : "chat"}`, {
+      const r = await fetch(`${API}/rooms/${roomCode}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerId: me, message }),
       });
-      if (r.ok) {
-        setText("");
-        if (isMafia) loadRef.current?.();
-      } else setErr((await r.json()).message || "Could not send.");
+      if (r.ok) setText("");
+      else setErr((await r.json()).message || "Could not send.");
     } catch {
       setErr("Can't reach the server.");
     }
@@ -720,44 +618,23 @@ function Chat({ roomCode, me, meName, canSend, open, setOpen, kind = "town" }) {
 
   return (
     <>
-      {!open && toasts.length > 0 && (
-        <div className="mf-toasts" aria-live="polite">
-          {toasts.map((t) => (
-            <button key={t.id} className="mf-toast" onClick={() => setOpen(true)}>
-              <b>{t.name}</b>
-              <span>{t.text}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {!open && (
         <button className="mf-chat-fab" onClick={() => setOpen(true)} aria-label="Open chat">
           {unread > 0 && <span className="mf-badge">{unread}</span>}
-          <span className="t">{isMafia ? "MAFIA" : "CHAT"}</span>
+          <span className="t">CHAT</span>
         </button>
       )}
 
-      <aside
-        className={`mf-chat-panel ${open ? "open" : ""} ${isMafia ? "mafia" : ""}`}
-        style={{ "--bg": `url(${mafiaHood})` }}
-        aria-hidden={!open}
-      >
+      <aside className={`mf-chat-panel ${open ? "open" : ""}`} style={{ "--bg": `url(${mafiaHood})` }} aria-hidden={!open}>
         <div className="mf-chat-head">
-          {isMafia ? "Mafia Whisper" : "Town Chat"}
+          Town Chat
           <button onClick={() => setOpen(false)} aria-label="Close chat">✕</button>
         </div>
 
         <div className="mf-msgs" ref={box}>
-          {msgs.length === 0 && (
-            <div className="mf-msg-empty">
-              {isMafia ? "Only you and your partner can see this." : "No messages yet."}
-              <br />
-              {isMafia ? "Agree on a target." : "Start the discussion."}
-            </div>
-          )}
+          {msgs.length === 0 && <div className="mf-msg-empty">No messages yet.<br />Start the discussion.</div>}
           {msgs.map((m, i) => (
-            <div key={i} className={`mf-msg ${isMine(m) ? "me" : ""}`}>
+            <div key={i} className={`mf-msg ${m.playerId === me ? "me" : ""}`}>
               <b>{m.playerName}</b>
               {m.message}
             </div>
@@ -771,7 +648,7 @@ function Chat({ roomCode, me, meName, canSend, open, setOpen, kind = "town" }) {
               <input
                 value={text}
                 maxLength={200}
-                placeholder={isMafia ? "Whisper to your partner…" : "Say something…"}
+                placeholder="Say something…"
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && send()}
               />
@@ -785,6 +662,7 @@ function Chat({ roomCode, me, meName, canSend, open, setOpen, kind = "town" }) {
     </>
   );
 }
+
 function Game({ room, me, role, gender, roomCode, intel, onFound, teammates = [] }) {
   const [pick, setPick] = useState(null);
   const [votePick, setVotePick] = useState(null);
@@ -931,7 +809,6 @@ function Game({ room, me, role, gender, roomCode, intel, onFound, teammates = []
     ) : null;
 
   // partner status + private chat, only rendered for Mafia with a partner
-   // partner status only (the chat lives in the side panel)
   const mafiaPanel =
     role === "MAFIA" && teammates.length > 0 ? (
       <>
@@ -949,8 +826,30 @@ function Game({ room, me, role, gender, roomCode, intel, onFound, teammates = []
                 : " hasn't picked yet"}
             </p>
           ))}
+        <div className="mf-mchat">
+          <div className="mf-mmsgs">
+            {mafia.messages.length === 0 && (
+              <span style={{ color: "var(--mute)" }}>Mafia-only chat. Agree on a target.</span>
+            )}
+            {mafia.messages.slice(-30).map((m, i) => (
+              <div key={i}>
+                <b>{m.playerName}:</b> {m.message}
+              </div>
+            ))}
+          </div>
+          <div className="mf-chatbar">
+            <input
+              value={chatText}
+              maxLength={200}
+              placeholder="Whisper to your partner…"
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMafiaChat()}
+            />
+            <button onClick={sendMafiaChat} disabled={!chatText.trim()}>Send</button>
+          </div>
+        </div>
         <p className="mf-note" style={{ margin: "8px 0 0" }}>
-          Use the MAFIA tab on the right to talk. If you pick different people, one pick is chosen at random.
+          If you pick different people, one of the picks is chosen at random.
         </p>
       </>
     ) : null;
@@ -1332,10 +1231,6 @@ function App() {
       } catch {}
     })();
   }, []);
-    // each phase starts with the chat closed
-  useEffect(() => {
-    setChatOpen(false);
-  }, [room?.phase]);
 
   // Save my seat whenever it changes
   useEffect(() => {
@@ -1395,16 +1290,12 @@ function App() {
     } catch {}
   };
   const me = room?.players.find((p) => p.id === myId);
-  const playing = Boolean(room && myRole && stage === "game" && room.status === "IN_PROGRESS");
-  const isDay = playing && room.phase === "DAY";
-  const showChat = isDay;
-  const showMafiaChat = Boolean(
-    playing && room.phase === "NIGHT" && myRole.role === "MAFIA" && myRole.teammates?.length > 0 && me?.alive
-  );
-  const chatActive = showChat || showMafiaChat;
+const showChat = Boolean(room && myRole && stage === "game" && room.status === "IN_PROGRESS" && room.phase === "DAY");
+const isDay = Boolean(room && myRole && stage === "game" && room.status === "IN_PROGRESS" && room.phase === "DAY");
   return (
     
-   <div className={`mf ${isDay ? "day" : ""} ${chatActive && chatOpen ? "chat-open" : ""}`}>
+   <div className={`mf ${isDay ? "day" : ""} 
+   ${showChat && chatOpen ? "chat-open" : ""}`}>
       <style>{css}</style>
       <Scene />
 
@@ -1598,33 +1489,16 @@ function App() {
             )}
           </>
         )}
-        
+        {showChat && (
+  <Chat
+    roomCode={roomCode}
+    me={myId}
+    canSend={Boolean(me?.alive)}
+    open={chatOpen}
+    setOpen={setChatOpen}
+  />
+)}
       </main>
-
-           {showChat && (
-        <Chat
-          key="town"
-          roomCode={roomCode}
-          me={myId}
-          meName={me?.name}
-          canSend={Boolean(me?.alive)}
-          open={chatOpen}
-          setOpen={setChatOpen}
-        />
-      )}
-
-      {showMafiaChat && (
-        <Chat
-          key="mafia"
-          kind="mafia"
-          roomCode={roomCode}
-          me={myId}
-          meName={me?.name}
-          canSend
-          open={chatOpen}
-          setOpen={setChatOpen}
-        />
-      )}
 
      {room && (
   <button

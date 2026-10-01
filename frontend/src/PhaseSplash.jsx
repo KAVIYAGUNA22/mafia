@@ -52,6 +52,7 @@ const css = `
   animation:psRise 1.6s ease-out .8s both}
 @keyframes psRise{from{opacity:0;transform:translateY(18px)}}
 
+@media (max-aspect-ratio:1/1){.ps-moon{width:min(78vw,46vh)}.ps-sun{width:min(84vw,50vh)}}
 @media (prefers-reduced-motion:reduce){.ps{display:none}}
 `;
 
