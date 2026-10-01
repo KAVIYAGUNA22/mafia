@@ -28,7 +28,8 @@ interface GameRoom {
     players: Player[];
     status: "WAITING" | "IN_PROGRESS" | "FINISHED";
     phase: "NIGHT" | "DAY";
-    mafiaTargetId?: number;
+    mafiaPicks: Record<number, number>;   // mafia player id -> target id
+    mafiaChat: { playerId: number; playerName: string; message: string; timestamp: string }[];
     doctorTargetId?: number;
     nightActed: number[];          // players who already used their night action
     lastResult?: string;           // public message shown to everyone in the morning
@@ -76,8 +77,8 @@ function makeRoomCode(): string {
 }
 
 function generateRoles(playerCount: number): string[] {
-    const mafiaCount =
-        playerCount <= 4 ? 1 : playerCount <= 7 ? 2 : Math.floor(playerCount / 3);
+        const mafiaCount =
+        Number(process.env.MAFIA_COUNT) || (playerCount <= 6 ? 1 : playerCount <= 9 ? 2 : 3);
 
     const roles: string[] = [
         ...Array(mafiaCount).fill("MAFIA"),
@@ -110,10 +111,17 @@ function checkWinner(room: GameRoom): { gameOver: boolean; winner?: string } {
 
 // Turns the night into the morning
 function resolveNight(room: GameRoom) {
-    const target = room.players.find(p => p.id === room.mafiaTargetId);
+    // Every locked-in Mafia pick goes into a hat. If they agree the target is clear;
+    // if not, one pick is drawn at random.
+    const picks = room.players
+        .filter(p => p.role === "MAFIA" && p.alive && room.nightActed.includes(p.id) && room.mafiaPicks[p.id] !== undefined)
+        .map(p => room.mafiaPicks[p.id]);
+
+    const targetId = picks.length ? picks[Math.floor(Math.random() * picks.length)] : undefined;
+    const target = room.players.find(p => p.id === targetId);
     let result = "Nobody was attacked tonight";
 
-        if (target && target.alive) {
+    if (target && target.alive) {
         if (room.doctorTargetId === target.id) {
             result = `${target.name} was attacked but saved by the Doctor`;
         } else {
@@ -122,7 +130,7 @@ function resolveNight(room: GameRoom) {
         }
     }
 
-    room.mafiaTargetId = undefined;
+    room.mafiaPicks = {};
     room.doctorTargetId = undefined;
     room.nightActed = [];
     room.phase = "DAY";
@@ -136,18 +144,15 @@ function resolveNight(room: GameRoom) {
     return { result, winner };
 }
 
-// Resolves automatically once every living Mafia, Doctor and Detective has acted
 function maybeResolveNight(room: GameRoom) {
     const needed = room.players.filter(
         p => p.alive && ["MAFIA", "DOCTOR", "DETECTIVE"].includes(p.role ?? "")
     );
-
     const everyoneActed = needed.every(p => room.nightActed.includes(p.id));
 
-    if (room.mafiaTargetId !== undefined && everyoneActed) {
+    if (needed.some(p => p.role === "MAFIA") && everyoneActed) {
         return resolveNight(room);
     }
-
     return null;
 }
 
@@ -170,7 +175,9 @@ app.post("/rooms", (req, res) => {
         phase: "NIGHT",
         nightActed: [],
         votes: [],
-        messages: []
+        messages: [],
+        mafiaPicks: {}, 
+        mafiaChat: []
     };
 
     rooms.push(room);
@@ -260,6 +267,8 @@ app.post("/rooms/:roomCode/start", (req, res) => {
     room.status = "IN_PROGRESS";
     room.phase = "NIGHT";
     room.nightActed = [];
+    room.mafiaPicks = {};
+    room.mafiaChat = [];
     room.lastResult = undefined;
     room.winner = undefined;
     room.messages = [];
@@ -324,7 +333,8 @@ app.post("/rooms/:roomCode/reset", (req, res) => {
 
     room.status = "WAITING";
     room.phase = "NIGHT";
-    room.mafiaTargetId = undefined;
+   room.mafiaPicks = {}; 
+   room.mafiaChat = [];
     room.doctorTargetId = undefined;
     room.nightActed = [];
     room.lastResult = undefined;
@@ -402,6 +412,7 @@ function nightRoute(path: string, options: NightOptions) {
         const data = options.apply(room, actor, target);
 
         room.nightActed.push(actor.id);
+        io.to(room.roomCode).emit("mafia-update");
 
         const resolved = maybeResolveNight(room);
 
@@ -413,9 +424,9 @@ nightRoute("mafia/kill", {
     role: "MAFIA",
     actorField: "mafiaPlayerId",
     allowSelf: false,
-    apply: (room, _actor, target) => {
-        room.mafiaTargetId = target.id;
-        return { message: "Mafia selected a target", targetPlayerId: target.id };
+        apply: (room, actor, target) => {
+        room.mafiaPicks[actor.id] = target.id;
+        return { message: "Mafia locked in a target", targetPlayerId: target.id };
     }
 });
 
@@ -457,7 +468,7 @@ app.post("/rooms/:roomCode/resolve-night", (req, res) => {
         return res.status(400).json({ message: "It is not night phase" });
     }
 
-    if (room.mafiaTargetId === undefined) {
+        if (Object.keys(room.mafiaPicks).length === 0) {
         return res.status(400).json({ message: "Mafia has not selected a target" });
     }
 
@@ -641,6 +652,76 @@ app.post("/rooms/:roomCode/resolve-votes", (req, res) => {
 
     res.json({ message: "Voting completed", ...resolveVotes(room) });
 });
+// Mafia changes their leaning pick (visible to their partner until they lock in)
+app.post("/rooms/:roomCode/mafia/pick", (req, res) => {
+    const room = findRoom(req.params.roomCode);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (room.status !== "IN_PROGRESS" || room.phase !== "NIGHT")
+        return res.status(400).json({ message: "Picks are only allowed at night" });
+
+    const actor = room.players.find(p => p.id === Number(req.body.mafiaPlayerId));
+    if (!actor || actor.role !== "MAFIA" || !actor.alive)
+        return res.status(403).json({ message: "Only living Mafia can do this" });
+    if (room.nightActed.includes(actor.id))
+        return res.status(400).json({ message: "You already locked in" });
+
+    const target = room.players.find(p => p.id === Number(req.body.targetPlayerId));
+    if (!target || !target.alive || target.role === "MAFIA")
+        return res.status(400).json({ message: "Invalid target" });
+
+    room.mafiaPicks[actor.id] = target.id;
+    io.to(room.roomCode).emit("mafia-update");
+    res.json({ message: "Pick updated" });
+});
+
+// What only Mafia may see: partners' picks and the private chat
+app.get("/rooms/:roomCode/mafia", (req, res) => {
+    const room = findRoom(req.params.roomCode);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+
+    const me = room.players.find(p => p.id === Number(req.query.playerId));
+    if (!me || me.role !== "MAFIA") return res.status(403).json({ message: "Mafia only" });
+
+    const team = room.players
+        .filter(p => p.role === "MAFIA")
+        .map(p => {
+            const pickId = room.mafiaPicks[p.id];
+            return {
+                id: p.id,
+                name: p.name,
+                alive: p.alive,
+                locked: room.phase === "NIGHT" && room.nightActed.includes(p.id),
+                pickName: pickId !== undefined ? room.players.find(x => x.id === pickId)?.name : undefined
+            };
+        });
+
+    res.json({ team, messages: room.mafiaChat });
+});
+
+app.post("/rooms/:roomCode/mafia/chat", (req, res) => {
+    const room = findRoom(req.params.roomCode);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (room.status !== "IN_PROGRESS" || room.phase !== "NIGHT")
+        return res.status(400).json({ message: "Mafia chat is only open at night" });
+
+    const player = room.players.find(p => p.id === Number(req.body.playerId));
+    if (!player || player.role !== "MAFIA" || !player.alive)
+        return res.status(403).json({ message: "Only living Mafia can chat here" });
+
+    const text = String(req.body.message ?? "").trim().slice(0, 200);
+    if (!text) return res.status(400).json({ message: "Message cannot be empty" });
+
+    room.mafiaChat.push({
+        playerId: player.id,
+        playerName: player.name,
+        message: text,
+        timestamp: new Date().toISOString()
+    });
+    if (room.mafiaChat.length > 100) room.mafiaChat.shift();
+
+    io.to(room.roomCode).emit("mafia-update");
+    res.status(201).json({ message: "Sent" });
+});
 
 /* ---------------- chat ---------------- */
 
@@ -703,7 +784,7 @@ app.get("/rooms/:roomCode/chat", (req, res) => {
 
 /* ---------------- sockets ---------------- */
 
-const GRACE_MS = 30000;
+const GRACE_MS = 120000;
 const seatKey = (code: string, id: number) => `${code}:${id}`;
 const presence = new Map<string, Set<string>>();          // seat -> open sockets
 const dropTimers = new Map<string, NodeJS.Timeout>();
